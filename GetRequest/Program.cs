@@ -13,6 +13,27 @@ namespace GetRequest
         static AutoResetEvent waitHandler = new AutoResetEvent(true);
         static void Main(string[] args)
         {
+            // Вводим IP
+            Console.Write("Введие IP: ");
+            string UserPath = Console.ReadLine();
+            uint UserAmout;
+
+            // Вводим количество запросов
+            while (true)
+            {
+                try
+                {
+                    Console.Write("Введите количество запросов: ");
+                    UserAmout = UInt32.Parse(Console.ReadLine());
+                    break;
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("Не правильный ввод!!!");
+                }
+            }
+
+            //Environment.Exit(404);
             // Отркрываю фаил на чтение
             StreamReader f = new StreamReader("../../../upstreams_test.log");
 
@@ -25,6 +46,9 @@ namespace GetRequest
             file.NowFirstTime = DateTime.MinValue;
             file.FirstTime = DateTime.MinValue;
             file.stream = f;
+            file.UserPath = UserPath;
+            file.amout = UserAmout;
+            file.SecondAmount = 0;
 
             // Запускаю потоки
             for (int i = 0; i < 5; i++)
@@ -40,13 +64,13 @@ namespace GetRequest
                 string str = file.stream.ReadLine();
 
                 // Получаем данные из фаила
-                if (str == null)
+                if (str == null || file.SecondAmount == file.amout)
                 {
                     waitHandler.Set();
                     break;
                 }
 
-                file = GetRegex(str, file);
+                file = GetRegex(str, file, file.UserPath);
 
                 if (file.matchRequest.Success)
                 {
@@ -68,6 +92,7 @@ namespace GetRequest
                         // Получание ответа. Если это включено, нужно запустить сервер
                         //WebResponse response = webRequest.GetResponse();
                         Console.WriteLine("Запрос отправлен" /*webRequest*/ + /*"\tОтветка:" + response +*/ "\tВремя: " + DateTime.Now + "\tПуть: " + "https://" + file.matchOut + file.matchPath);
+                        file.SecondAmount ++;
                     }
                     catch (Exception) { waitHandler.Set(); }
 
@@ -90,7 +115,7 @@ namespace GetRequest
             return threads;
         }
 
-        private static FileStream GetRegex(string FileString, FileStream file)
+        private static FileStream GetRegex(string FileString, FileStream file, string UserPath)
         {
             // Выборка времени в фаиле и получаем результат
             Regex regexTime = new Regex(@"\d{2}/\w{3}/\d{4}:\d{2}:\d{2}:\d{2}\b");
@@ -107,7 +132,8 @@ namespace GetRequest
             FileString = FileString.Replace(matchTime.Value, "");
 
             // Выборка localhost и получение результата
-            Regex regexOut = new Regex(@"\b(\d+\.\d+\.\d+\.\d+:\d+)\b");
+            //Regex regexOut = new Regex(@"\b(\d+\.\d+\.\d+\.\d+:\d+)\b");
+            Regex regexOut = new Regex(UserPath);
             file.matchOut = regexOut.Match(FileString);
 
             // Выборка типа запроса и получаем результат
@@ -150,6 +176,10 @@ namespace GetRequest
             public DateTime NowFirstTime, FirstTime, Time;
             // Запрос и путь
             public Match matchRequest, matchOut, matchPath;
+            // Количество запросов
+            public uint amout, SecondAmount;
+            // Прописанный IP
+            public string UserPath;
         }
     }
 }
